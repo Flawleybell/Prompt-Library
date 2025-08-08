@@ -1,9 +1,18 @@
+<script>
+  (function() {
+    var password = prompt("Enter password to view this page:");
+    if (password !== "CIA123") {
+      document.body.innerHTML = "<h2>Access denied</h2>";
+    }
+  })();
+</script>
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Prompt Library</title>
+  <title>Prompt Library (No-Install, Full CRUD)</title>
+
   <style>
     :root { --border:#e5e7eb; --muted:#6b7280; --bg:#fff; --chip:#f3f4f6; --ink:#111827; }
     *{box-sizing:border-box}
@@ -26,31 +35,27 @@
     .badge{display:inline-block;background:var(--chip);padding:4px 8px;border-radius:999px;font-size:12px}
     .muted{color:var(--muted);font-size:12px}
     pre,code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+    /* Two-line clamp preview */
     .clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap}
     .chip-toggle { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid var(--border); border-radius:6px; cursor:pointer; }
+    /* Simple modal */
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:16px}
     .modal{max-width:760px;width:100%;background:#fff;border-radius:10px;border:1px solid var(--border);overflow:hidden}
     .modal .card-header{border-bottom:1px solid var(--border)}
   </style>
+
+  <!-- React + Babel via CDN (no install needed) -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
-  <script>
-    (function() {
-      var password = prompt("Enter password to view this page:");
-      if (password !== "CIA123") {
-        document.body.innerHTML = "<h2>Access denied</h2>";
-      }
-    })();
-  </script>
-
   <div id="root"></div>
 
   <script type="text/babel">
     const { useEffect, useMemo, useState } = React;
 
+    // Safe ID (no crypto.randomUUID)
     function uid(){ return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`; }
 
     const DEFAULT_CATEGORIES = ['IDV','Disputes','Vulnerability','Payments','Closures','Escalations','General'];
@@ -94,15 +99,17 @@
       const [items, setItems] = useState([]);
       const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
 
+      // filters & UI state
       const [q, setQ] = useState('');
       const [catFilter, setCatFilter] = useState('All');
       const [tagFilter, setTagFilter] = useState('');
       const [channelFilter, setChannelFilter] = useState('');
       const [compact, setCompact] = useState(true);
       const [expandedIds, setExpandedIds] = useState([]);
-      const [editing, setEditing] = useState(null);
+      const [editing, setEditing] = useState(null); // object or null
       const [showEditor, setShowEditor] = useState(false);
 
+      // load
       useEffect(() => {
         try {
           const saved = localStorage.getItem(STORAGE_KEY);
@@ -114,9 +121,11 @@
         } catch {}
       }, []);
 
+      // persist
       useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }, [items]);
       useEffect(() => { localStorage.setItem(CAT_KEY, JSON.stringify(categories)); }, [categories]);
 
+      // filtered list
       const filtered = useMemo(() => {
         return items.filter(it => {
           if (catFilter !== 'All' && it.category !== catFilter) return false;
@@ -130,6 +139,7 @@
         });
       }, [items, catFilter, tagFilter, channelFilter, q]);
 
+      // actions
       function startNew(){
         setEditing({
           id: uid(),
@@ -218,7 +228,7 @@
 
           {/* Filters */}
           <div className="card" style={{marginBottom:16}}>
-            <div className="card-header"><div style={{fontWeight:600}}>Search &amp; Filter</div></div>
+            <div className="card-header"><div style={{fontWeight:600}}>Search & Filter</div></div>
             <div className="card-body grid" style={{gridTemplateColumns:'2fr 1fr 1fr 1fr'}}>
               <input className="input" value={q} onChange={e=>setQ(e.target.value)} placeholder="Search name, purpose, prompt, notes, tags…"/>
               <select className="select" value={catFilter} onChange={e=>setCatFilter(e.target.value)}>
@@ -232,54 +242,70 @@
               </select>
             </div>
           </div>
+
           {/* List */}
-<div className="grid two">
-  {filtered.length===0 && (
-    <div className="card">
-      <div className="card-body muted">No prompts match your filters.</div>
-    </div>
-  )}
-  {filtered.map(it=>(
-    <div className="card" key={it.id}>
-      <div className="card-header">
-        <div className="spread">
-          <div>
-            <div style={{fontSize:18, fontWeight:600}}>{it.name}</div>
-            <div className="muted">{it.category} • Updated {new Date(it.updatedAt).toLocaleString()}</div>
-          </div>
-          <div className="hstack">
-            <button className="button ghost" title="Copy full prompt" onClick={()=>navigator.clipboard.writeText(it.prompt)}>Copy</button>
-            <button className="button ghost" title="Edit" onClick={()=>editItem(it)}>Edit</button>
-            <button className="button ghost" title="Duplicate" onClick={()=>duplicateItem(it.id)}>Duplicate</button>
-            <button className="button danger" title="Delete" onClick={()=>deleteItem(it.id)}>Delete</button>
-          </div>
-        </div>
-      </div>
-      <div className="card-body">
-        <div className="muted" style={{marginBottom:8}}>{it.purpose}</div>
+          <div className="grid two">
+            <div className="grid">
+              {filtered.length===0 && (
+                <div className="card"><div className="card-body muted">No prompts match your filters.</div></div>
+              )}
+              {filtered.map(it=>(
+                <div className="card" key={it.id}>
+                  <div className="card-header">
+                    <div className="spread">
+                      <div>
+                        <div style={{fontSize:18, fontWeight:600}}>{it.name}</div>
+                        <div className="muted">{it.category} • Updated {new Date(it.updatedAt).toLocaleString()}</div>
+                      </div>
+                      <div className="hstack">
+                        <button className="button ghost" title="Copy full prompt" onClick={()=>navigator.clipboard.writeText(it.prompt)}>Copy</button>
+                        <button className="button ghost" title="Edit" onClick={()=>editItem(it)}>Edit</button>
+                        <button className="button ghost" title="Duplicate" onClick={()=>duplicateItem(it.id)}>Duplicate</button>
+                        <button className="button danger" title="Delete" onClick={()=>deleteItem(it.id)}>Delete</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="card-body">
+                    <div className="muted" style={{marginBottom:8}}>{it.purpose}</div>
 
-        {compact && !expandedIds.includes(it.id) ? (
-          <div>
-            <div className="clamp" style={{fontSize:14, fontFamily:'ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace'}}>{it.prompt}</div>
-            <button className="button ghost" onClick={()=>toggleExpanded(it.id)}>Show more</button>
-          </div>
-        ) : (
-          <div>
-            <pre style={{whiteSpace:'pre-wrap', fontSize:14, margin:0}}>{it.prompt}</pre>
-            {compact && <button className="button ghost" onClick={()=>toggleExpanded(it.id)}>Show less</button>}
-          </div>
-        )}
+                    {compact && !expandedIds.includes(it.id) ? (
+                      <div>
+                        <div className="clamp" style={{fontSize:14, fontFamily:'ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace'}}>{it.prompt}</div>
+                        <button className="button ghost" onClick={()=>toggleExpanded(it.id)}>Show more</button>
+                      </div>
+                    ) : (
+                      <div>
+                        <pre style={{whiteSpace:'pre-wrap', fontSize:14, margin:0}}>{it.prompt}</pre>
+                        {compact && <button className="button ghost" onClick={()=>toggleExpanded(it.id)}>Show less</button>}
+                      </div>
+                    )}
 
-        {it.notes && <div className="muted" style={{marginTop:8}}>Notes: {it.notes}</div>}
-        <div className="hstack-wrap" style={{marginTop:8}}>
-          {(it.tags||[]).map(t => <span key={t} className="badge">{t}</span>)}
-          {(it.channels||[]).map(c => <span key={c} className="badge">{c}</span>)}
-        </div>
-      </div>
-    </div>
-  ))}
-</div>
-          
+                    {it.notes && <div className="muted" style={{marginTop:8}}>Notes: {it.notes}</div>}
+                    <div className="hstack-wrap" style={{marginTop:8}}>
+                      {(it.tags||[]).map(t => <span key={t} className="badge">{t}</span>)}
+                      {(it.channels||[]).map(c => <span key={c} className="badge">{c}</span>)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Help / Backup */}
+            <div className="grid">
+              <div className="card">
+                <div className="card-header"><div style={{fontWeight:600}}>Tips</div></div>
+                <div className="card-body">
+                  <ul>
+                    <li>Use <b>New Prompt</b> to add entries.</li>
+                    <li>Click <b>Edit</b> on a card to update it.</li>
+                    <li><b>Import</b>/<b>Export</b> let you back up or share your library.</li>
+                    <li>Data is saved in your browser (localStorage).</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Editor Modal */}
           {showEditor && editing && (
             <div className="modal-backdrop" onClick={(e)=>{ if(e.target.classList.contains('modal-backdrop')) { setShowEditor(false); setEditing(null);} }}>
