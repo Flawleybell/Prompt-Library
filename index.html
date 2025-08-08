@@ -234,15 +234,14 @@
           </div>
 
           {/* List */}
-          <div className="grid two">
-            <div className="grid">
-              {filtered.length===0 && (
-                <div className="card"><div className="card-body muted">No prompts match your filters.</div></div>
-              )}
-              {filtered.map(it=>(
-                <div className="card" key={it.id}>
-                  <div className="card-header">
-                    <div className="spread">
+  <div className="grid two">
+  {filtered.length===0 && (
+    <div className="card"><div className="card-body muted">No prompts match your filters.</div></div>
+  )}
+  {filtered.map(it=>(
+    <div className="card" key={it.id}>
+      <div className="card-header">
+        <div className="spread">
                       <div>
                         <div style={{fontSize:18, fontWeight:600}}>{it.name}</div>
                         <div className="muted">{it.category} • Updated {new Date(it.updatedAt).toLocaleString()}</div>
