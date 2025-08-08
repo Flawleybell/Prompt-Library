@@ -232,54 +232,54 @@
               </select>
             </div>
           </div>
-
           {/* List */}
-  <div className="grid two">
+<div className="grid two">
   {filtered.length===0 && (
-    <div className="card"><div className="card-body muted">No prompts match your filters.</div></div>
+    <div className="card">
+      <div className="card-body muted">No prompts match your filters.</div>
+    </div>
   )}
   {filtered.map(it=>(
     <div className="card" key={it.id}>
       <div className="card-header">
         <div className="spread">
-                      <div>
-                        <div style={{fontSize:18, fontWeight:600}}>{it.name}</div>
-                        <div className="muted">{it.category} • Updated {new Date(it.updatedAt).toLocaleString()}</div>
-                      </div>
-                      <div className="hstack">
-                        <button className="button ghost" title="Copy full prompt" onClick={()=>navigator.clipboard.writeText(it.prompt)}>Copy</button>
-                        <button className="button ghost" title="Edit" onClick={()=>editItem(it)}>Edit</button>
-                        <button className="button ghost" title="Duplicate" onClick={()=>duplicateItem(it.id)}>Duplicate</button>
-                        <button className="button danger" title="Delete" onClick={()=>deleteItem(it.id)}>Delete</button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="card-body">
-                    <div className="muted" style={{marginBottom:8}}>{it.purpose}</div>
-
-                    {compact && !expandedIds.includes(it.id) ? (
-                      <div>
-                        <div className="clamp" style={{fontSize:14, fontFamily:'ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace'}}>{it.prompt}</div>
-                        <button className="button ghost" onClick={()=>toggleExpanded(it.id)}>Show more</button>
-                      </div>
-                    ) : (
-                      <div>
-                        <pre style={{whiteSpace:'pre-wrap', fontSize:14, margin:0}}>{it.prompt}</pre>
-                        {compact && <button className="button ghost" onClick={()=>toggleExpanded(it.id)}>Show less</button>}
-                      </div>
-                    )}
-
-                    {it.notes && <div className="muted" style={{marginTop:8}}>Notes: {it.notes}</div>}
-                    <div className="hstack-wrap" style={{marginTop:8}}>
-                      {(it.tags||[]).map(t => <span key={t} className="badge">{t}</span>)}
-                      {(it.channels||[]).map(c => <span key={c} className="badge">{c}</span>)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div>
+            <div style={{fontSize:18, fontWeight:600}}>{it.name}</div>
+            <div className="muted">{it.category} • Updated {new Date(it.updatedAt).toLocaleString()}</div>
           </div>
+          <div className="hstack">
+            <button className="button ghost" title="Copy full prompt" onClick={()=>navigator.clipboard.writeText(it.prompt)}>Copy</button>
+            <button className="button ghost" title="Edit" onClick={()=>editItem(it)}>Edit</button>
+            <button className="button ghost" title="Duplicate" onClick={()=>duplicateItem(it.id)}>Duplicate</button>
+            <button className="button danger" title="Delete" onClick={()=>deleteItem(it.id)}>Delete</button>
+          </div>
+        </div>
+      </div>
+      <div className="card-body">
+        <div className="muted" style={{marginBottom:8}}>{it.purpose}</div>
 
+        {compact && !expandedIds.includes(it.id) ? (
+          <div>
+            <div className="clamp" style={{fontSize:14, fontFamily:'ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace'}}>{it.prompt}</div>
+            <button className="button ghost" onClick={()=>toggleExpanded(it.id)}>Show more</button>
+          </div>
+        ) : (
+          <div>
+            <pre style={{whiteSpace:'pre-wrap', fontSize:14, margin:0}}>{it.prompt}</pre>
+            {compact && <button className="button ghost" onClick={()=>toggleExpanded(it.id)}>Show less</button>}
+          </div>
+        )}
+
+        {it.notes && <div className="muted" style={{marginTop:8}}>Notes: {it.notes}</div>}
+        <div className="hstack-wrap" style={{marginTop:8}}>
+          {(it.tags||[]).map(t => <span key={t} className="badge">{t}</span>)}
+          {(it.channels||[]).map(c => <span key={c} className="badge">{c}</span>)}
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+          
           {/* Editor Modal */}
           {showEditor && editing && (
             <div className="modal-backdrop" onClick={(e)=>{ if(e.target.classList.contains('modal-backdrop')) { setShowEditor(false); setEditing(null);} }}>
