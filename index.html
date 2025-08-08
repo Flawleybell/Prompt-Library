@@ -3,6 +3,7 @@
     var password = prompt("Enter password to view this page:");
     if (password !== "CIA123") {
       document.body.innerHTML = "<h2>Access denied</h2>";
+      return;
     }
   })();
 </script>
@@ -16,7 +17,7 @@
   <style>
     :root { --border:#e5e7eb; --muted:#6b7280; --bg:#fff; --chip:#f3f4f6; --ink:#111827; }
     *{box-sizing:border-box}
-    html,body,#root{height:100%}
+    html,body{height:100%}
     body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--ink)}
     .container{max-width:1200px;margin:0 auto;padding:24px}
     .hstack{display:flex;align-items:center;gap:8px}
@@ -38,15 +39,12 @@
     .badge{display:inline-block;background:var(--chip);padding:4px 8px;border-radius:999px;font-size:12px}
     .muted{color:var(--muted);font-size:12px}
     pre,code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
-    /* Two-line clamp preview */
     .clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap}
     .chip-toggle { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid var(--border); border-radius:6px; cursor:pointer; }
-    /* Simple modal */
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:16px}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
     .modal{max-width:760px;width:100%;background:#fff;border-radius:10px;border:1px solid var(--border);overflow:hidden}
     .modal .card-header{border-bottom:1px solid var(--border)}
     
-    /* Logo styles */
     .logo {
       height: 32px;
       width: auto;
@@ -58,33 +56,379 @@
       align-items: center;
     }
   </style>
-
-  <!-- React + Babel via CDN (no install needed) -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
-  <div id="root"></div>
+  <div class="container">
+    <div class="spread" style="margin-bottom:16px">
+      <div class="hstack">
+        <div class="header-title">
+          <img src="./logo.png" alt="Logo" class="logo" />
+          <h1 style="margin:0">Prompt Library</h1>
+        </div>
+        <label class="chip-toggle">
+          <input type="checkbox" id="compactToggle"/>
+          Compact view
+        </label>
+      </div>
+      <div class="hstack-wrap">
+        <button class="button" onclick="addCategory()">Add Category</button>
+        <button class="button" onclick="importItems()">Import JSON</button>
+        <button class="button" onclick="exportFiltered()">Export filtered</button>
+        <button class="button primary" onclick="exportAll()">Export all</button>
+        <button class="button" onclick="startNew()">New Prompt</button>
+      </div>
+    </div>
 
-  <script type="text/babel">
-    const { useEffect, useMemo, useState } = React;
+    <!-- Filters -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header"><div style="font-weight:600">Search & Filter</div></div>
+      <div class="card-body grid" style="grid-template-columns:2fr 1fr 1fr 1fr">
+        <input class="input" id="searchInput" placeholder="Search name, purpose, prompt, notes, tags…" oninput="filterPrompts()"/>
+        <select class="select" id="categoryFilter" onchange="filterPrompts()">
+          <option>All</option>
+        </select>
+        <input class="input" id="tagFilter" placeholder="Tag (exact)" oninput="filterPrompts()"/>
+        <select class="select" id="channelFilter" onchange="filterPrompts()">
+          <option value="">All channels</option>
+          <option>Front</option>
+          <option>ElevenLabs</option>
+          <option>Voice</option>
+          <option>Email</option>
+          <option>SMS</option>
+          <option>Chat</option>
+        </select>
+      </div>
+    </div>
 
-    // Safe ID (no crypto.randomUUID)
-    function uid(){ return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`; }
+    <!-- Main Content -->
+    <div class="two-column-grid" id="promptsContainer">
+      <!-- Prompts will be loaded here -->
+    </div>
 
-    const DEFAULT_CATEGORIES = ['IDV','Disputes','Vulnerability','Payments','Closures','Escalations','General'];
-    const DEFAULT_CHANNELS = ['Front','ElevenLabs','Voice','Email','SMS','Chat'];
-    const STORAGE_KEY = 'promptlib.v1.items';
-    const CAT_KEY = 'promptlib.v1.categories';
+    <!-- Footer -->
+    <div class="muted" style="text-align:center; padding:16px 0 32px">
+      Stored locally in your browser. Use Export to back up or share with teammates.
+    </div>
+  </div>
 
-    const STARTER_DATA = [
-      { id: uid(), category: 'IDV', name: 'IDV – Standard', purpose: 'Confirm identity before account details.', prompt: 'For security, I need to confirm a few details before we continue. Could you please confirm your surname?', notes: 'Use after intro, before giving any account details.', tags: ['compliance', 'intro'], channels: ['Voice', 'Front'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: uid(), category: 'Disputes', name: 'Balance not recognised – holding', purpose: 'Acknowledge and move to dispute flow without defensiveness.', prompt: 'Thanks for letting me know. I won't go into details until this is checked. I can raise a dispute so the team can investigate. Could you tell me briefly what doesn't look right?', notes: 'Keep neutral; capture summary + evidence.', tags: ['dispute', 'holding'], channels: ['Voice', 'Chat'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: uid(), category: 'Vulnerability', name: 'TEXAS – consent line', purpose: 'Gain explicit consent to note circumstances.', prompt: 'So that we can support you in the best way going forward, would it be okay for us to make a note of your circumstances on your account? This information may be shared with {Client} and you can ask us to remove this information at any time, just let us know.', notes: 'Exact wording per internal guidance.', tags: ['vulnerability', 'consent', 'TEXAS'], channels: ['Voice', 'Front', 'Chat'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+  <!-- Editor Modal -->
+  <div class="modal-backdrop" id="editorModal" style="display:none">
+    <div class="modal">
+      <div class="card-header spread">
+        <div style="font-weight:600" id="modalTitle">New Prompt</div>
+        <button class="button" onclick="closeEditor()">Close</button>
+      </div>
+      <div class="card-body grid" style="grid-template-columns:1fr 1fr">
+        <div>
+          <label class="muted">Category</label>
+          <select class="select" id="editCategory"></select>
+        </div>
+        <div>
+          <label class="muted">Name</label>
+          <input class="input" id="editName" placeholder="e.g. IDV – Standard"/>
+        </div>
+        <div style="grid-column:span 2">
+          <label class="muted">Purpose</label>
+          <input class="input" id="editPurpose" placeholder="Why this exists"/>
+        </div>
+        <div style="grid-column:span 2">
+          <label class="muted">Prompt</label>
+          <textarea class="textarea" rows="7" id="editPrompt" placeholder="The actual text…"></textarea>
+        </div>
+        <div style="grid-column:span 2">
+          <label class="muted">Notes</label>
+          <textarea class="textarea" rows="3" id="editNotes" placeholder="Compliance notes, when to use, etc."></textarea>
+        </div>
+        <div>
+          <label class="muted">Tags (comma separated)</label>
+          <input class="input" id="editTags" placeholder="intro, compliance, SMS"/>
+        </div>
+        <div>
+          <label class="muted">Channels</label>
+          <div class="hstack-wrap" id="channelToggles"></div>
+        </div>
+        <div style="grid-column:span 2" class="hstack">
+          <button class="button" onclick="closeEditor()">Cancel</button>
+          <button class="button primary" onclick="savePrompt()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Simple vanilla JS version
+    let prompts = [];
+    let categories = ['IDV','Disputes','Vulnerability','Payments','Closures','Escalations','General'];
+    let channels = ['Front','ElevenLabs','Voice','Email','SMS','Chat'];
+    let currentEdit = null;
+
+    // Initialize with sample data
+    const sampleData = [
+      { 
+        id: Date.now() + '-1', 
+        category: 'IDV', 
+        name: 'IDV – Standard', 
+        purpose: 'Confirm identity before account details.', 
+        prompt: 'For security, I need to confirm a few details before we continue. Could you please confirm your surname?', 
+        notes: 'Use after intro, before giving any account details.', 
+        tags: ['compliance', 'intro'], 
+        channels: ['Voice', 'Front'], 
+        createdAt: new Date().toISOString(), 
+        updatedAt: new Date().toISOString() 
+      },
+      { 
+        id: Date.now() + '-2', 
+        category: 'Disputes', 
+        name: 'Balance not recognised – holding', 
+        purpose: 'Acknowledge and move to dispute flow without defensiveness.', 
+        prompt: 'Thanks for letting me know. I won\'t go into details until this is checked. I can raise a dispute so the team can investigate. Could you tell me briefly what doesn\'t look right?', 
+        notes: 'Keep neutral; capture summary + evidence.', 
+        tags: ['dispute', 'holding'], 
+        channels: ['Voice', 'Chat'], 
+        createdAt: new Date().toISOString(), 
+        updatedAt: new Date().toISOString() 
+      }
     ];
 
-    function exportJSON(filename, data) {
+    // Load data
+    function loadData() {
+      const saved = localStorage.getItem('promptlib.v1.items');
+      prompts = saved ? JSON.parse(saved) : sampleData;
+      const savedCats = localStorage.getItem('promptlib.v1.categories');
+      if (savedCats) categories = JSON.parse(savedCats);
+      populateCategoryFilter();
+      renderPrompts();
+    }
+
+    // Save data
+    function saveData() {
+      localStorage.setItem('promptlib.v1.items', JSON.stringify(prompts));
+      localStorage.setItem('promptlib.v1.categories', JSON.stringify(categories));
+    }
+
+    // Populate category filter
+    function populateCategoryFilter() {
+      const select = document.getElementById('categoryFilter');
+      select.innerHTML = '<option>All</option>';
+      categories.forEach(cat => {
+        select.innerHTML += `<option>${cat}</option>`;
+      });
+    }
+
+    // Render prompts
+    function renderPrompts() {
+      const container = document.getElementById('promptsContainer');
+      const filtered = getFilteredPrompts();
+      
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="card"><div class="card-body muted">No prompts match your filters.</div></div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(prompt => `
+        <div class="card">
+          <div class="card-header">
+            <div class="spread">
+              <div>
+                <div style="font-size:18px; font-weight:600">${prompt.name}</div>
+                <div class="muted">${prompt.category} • Updated ${new Date(prompt.updatedAt).toLocaleString()}</div>
+              </div>
+              <div class="hstack">
+                <button class="button ghost" onclick="copyPrompt('${prompt.id}')">Copy</button>
+                <button class="button ghost" onclick="editPrompt('${prompt.id}')">Edit</button>
+                <button class="button ghost" onclick="duplicatePrompt('${prompt.id}')">Duplicate</button>
+                <button class="button danger" onclick="deletePrompt('${prompt.id}')">Delete</button>
+              </div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="muted" style="margin-bottom:8px">${prompt.purpose}</div>
+            <pre style="white-space:pre-wrap; font-size:14px; margin:0">${prompt.prompt}</pre>
+            ${prompt.notes ? `<div class="muted" style="margin-top:8px">Notes: ${prompt.notes}</div>` : ''}
+            <div class="hstack-wrap" style="margin-top:8px">
+              ${prompt.tags.map(tag => `<span class="badge">${tag}</span>`).join('')}
+              ${prompt.channels.map(channel => `<span class="badge">${channel}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Filter prompts
+    function getFilteredPrompts() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const categoryFilter = document.getElementById('categoryFilter').value;
+      const tagFilter = document.getElementById('tagFilter').value;
+      const channelFilter = document.getElementById('channelFilter').value;
+
+      return prompts.filter(prompt => {
+        if (categoryFilter !== 'All' && prompt.category !== categoryFilter) return false;
+        if (tagFilter && !prompt.tags.includes(tagFilter)) return false;
+        if (channelFilter && !prompt.channels.includes(channelFilter)) return false;
+        if (search) {
+          const searchText = [prompt.name, prompt.prompt, prompt.purpose, prompt.notes, ...prompt.tags, ...prompt.channels].join(' ').toLowerCase();
+          if (!searchText.includes(search)) return false;
+        }
+        return true;
+      });
+    }
+
+    function filterPrompts() {
+      renderPrompts();
+    }
+
+    // Copy prompt
+    function copyPrompt(id) {
+      const prompt = prompts.find(p => p.id === id);
+      if (prompt && navigator.clipboard) {
+        navigator.clipboard.writeText(prompt.prompt);
+      }
+    }
+
+    // Delete prompt
+    function deletePrompt(id) {
+      if (confirm('Delete this prompt?')) {
+        prompts = prompts.filter(p => p.id !== id);
+        saveData();
+        renderPrompts();
+      }
+    }
+
+    // Duplicate prompt
+    function duplicatePrompt(id) {
+      const prompt = prompts.find(p => p.id === id);
+      if (prompt) {
+        const copy = {
+          ...prompt,
+          id: Date.now() + '-' + Math.random().toString(36).slice(2),
+          name: prompt.name + ' (copy)',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        prompts.unshift(copy);
+        saveData();
+        renderPrompts();
+      }
+    }
+
+    // Start new prompt
+    function startNew() {
+      currentEdit = {
+        id: Date.now() + '-' + Math.random().toString(36).slice(2),
+        category: categories[0],
+        name: '',
+        purpose: '',
+        prompt: '',
+        notes: '',
+        tags: [],
+        channels: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      openEditor();
+    }
+
+    // Edit prompt
+    function editPrompt(id) {
+      const prompt = prompts.find(p => p.id === id);
+      if (prompt) {
+        currentEdit = { ...prompt };
+        openEditor();
+      }
+    }
+
+    // Open editor
+    function openEditor() {
+      const modal = document.getElementById('editorModal');
+      const title = document.getElementById('modalTitle');
+      
+      title.textContent = prompts.some(p => p.id === currentEdit.id) ? 'Edit Prompt' : 'New Prompt';
+      
+      // Populate category dropdown
+      const categorySelect = document.getElementById('editCategory');
+      categorySelect.innerHTML = categories.map(cat => 
+        `<option ${cat === currentEdit.category ? 'selected' : ''}>${cat}</option>`
+      ).join('');
+      
+      // Fill form
+      document.getElementById('editName').value = currentEdit.name;
+      document.getElementById('editPurpose').value = currentEdit.purpose;
+      document.getElementById('editPrompt').value = currentEdit.prompt;
+      document.getElementById('editNotes').value = currentEdit.notes;
+      document.getElementById('editTags').value = currentEdit.tags.join(', ');
+      
+      // Channel toggles
+      const channelContainer = document.getElementById('channelToggles');
+      channelContainer.innerHTML = channels.map(channel => `
+        <label class="chip-toggle">
+          <input type="checkbox" ${currentEdit.channels.includes(channel) ? 'checked' : ''} data-channel="${channel}"/>
+          ${channel}
+        </label>
+      `).join('');
+      
+      modal.style.display = 'flex';
+    }
+
+    // Close editor
+    function closeEditor() {
+      document.getElementById('editorModal').style.display = 'none';
+      currentEdit = null;
+    }
+
+    // Save prompt
+    function savePrompt() {
+      if (!currentEdit) return;
+      
+      const name = document.getElementById('editName').value.trim();
+      if (!name) {
+        alert('Please enter a name');
+        return;
+      }
+      
+      currentEdit.category = document.getElementById('editCategory').value;
+      currentEdit.name = name;
+      currentEdit.purpose = document.getElementById('editPurpose').value;
+      currentEdit.prompt = document.getElementById('editPrompt').value;
+      currentEdit.notes = document.getElementById('editNotes').value;
+      currentEdit.tags = document.getElementById('editTags').value.split(',').map(s => s.trim()).filter(Boolean);
+      
+      // Get selected channels
+      const channelCheckboxes = document.querySelectorAll('#channelToggles input[type="checkbox"]');
+      currentEdit.channels = Array.from(channelCheckboxes).filter(cb => cb.checked).map(cb => cb.dataset.channel);
+      
+      const exists = prompts.some(p => p.id === currentEdit.id);
+      if (exists) {
+        const index = prompts.findIndex(p => p.id === currentEdit.id);
+        prompts[index] = { ...currentEdit, updatedAt: new Date().toISOString() };
+      } else {
+        prompts.unshift(currentEdit);
+      }
+      
+      saveData();
+      renderPrompts();
+      closeEditor();
+    }
+
+    // Add category
+    function addCategory() {
+      const name = prompt('New category name');
+      if (name && !categories.includes(name)) {
+        categories.push(name);
+        saveData();
+        populateCategoryFilter();
+      }
+    }
+
+    // Export functions
+    function exportAll() {
+      downloadJSON('prompt-library.json', prompts);
+    }
+
+    function exportFiltered() {
+      downloadJSON('prompt-library-filtered.json', getFilteredPrompts());
+    }
+
+    function downloadJSON(filename, data) {
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -94,289 +438,49 @@
       URL.revokeObjectURL(url);
     }
 
-    function importJSON(onData) {
+    function importItems() {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = '.json';
-      input.onchange = () => {
-        const file = input.files && input.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => {
-          try { onData(JSON.parse(String(reader.result))) } catch { alert('Invalid JSON file') }
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const data = JSON.parse(e.target.result);
+              if (Array.isArray(data)) {
+                prompts = prompts.concat(data.map(d => ({
+                  id: d.id || Date.now() + '-' + Math.random().toString(36).slice(2),
+                  category: d.category || 'General',
+                  name: d.name || 'Untitled',
+                  purpose: d.purpose || '',
+                  prompt: d.prompt || '',
+                  notes: d.notes || '',
+                  tags: Array.isArray(d.tags) ? d.tags : [],
+                  channels: Array.isArray(d.channels) ? d.channels : [],
+                  createdAt: d.createdAt || new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                })));
+                saveData();
+                renderPrompts();
+              } else {
+                alert('Expected an array of prompts');
+              }
+            } catch (error) {
+              alert('Invalid JSON file');
+            }
+          };
+          reader.readAsText(file);
         }
-        reader.readAsText(file);
       };
       input.click();
     }
 
-    function App() {
-      const [items, setItems] = useState([]);
-      const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
-
-      // filters & UI state
-      const [q, setQ] = useState('');
-      const [catFilter, setCatFilter] = useState('All');
-      const [tagFilter, setTagFilter] = useState('');
-      const [channelFilter, setChannelFilter] = useState('');
-      const [compact, setCompact] = useState(true);
-      const [expandedIds, setExpandedIds] = useState([]);
-      const [editing, setEditing] = useState(null); // object or null
-      const [showEditor, setShowEditor] = useState(false);
-
-      // load
-      useEffect(() => {
-        try {
-          const saved = localStorage.getItem(STORAGE_KEY);
-          setItems(saved ? JSON.parse(saved) : STARTER_DATA);
-        } catch { setItems(STARTER_DATA); }
-        try {
-          const savedCats = localStorage.getItem(CAT_KEY);
-          if (savedCats) setCategories(JSON.parse(savedCats));
-        } catch {}
-      }, []);
-
-      // persist
-      useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }, [items]);
-      useEffect(() => { localStorage.setItem(CAT_KEY, JSON.stringify(categories)); }, [categories]);
-
-      // filtered list
-      const filtered = useMemo(() => {
-        return items.filter(it => {
-          if (catFilter !== 'All' && it.category !== catFilter) return false;
-          if (tagFilter && !(it.tags||[]).includes(tagFilter)) return false;
-          if (channelFilter && !(it.channels||[]).includes(channelFilter)) return false;
-          if (q) {
-            const hay = [it.name,it.prompt,it.purpose,it.notes,(it.tags||[]).join(' '),(it.channels||[]).join(' ')].join(' ').toLowerCase();
-            if (!hay.includes(q.toLowerCase())) return false;
-          }
-          return true;
-        });
-      }, [items, catFilter, tagFilter, channelFilter, q]);
-
-      // actions
-      function startNew(){
-        setEditing({
-          id: uid(),
-          category: categories[0] || 'General',
-          name: '',
-          purpose: '',
-          prompt: '',
-          notes: '',
-          tags: [],
-          channels: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
-        setShowEditor(true);
-      }
-      function editItem(it){ setEditing({...it}); setShowEditor(true); }
-      function saveEditing(){
-        if(!editing) return;
-        if(!editing.name?.trim()) return alert('Please enter a name');
-        const exists = items.some(x => x.id === editing.id);
-        const next = exists
-          ? items.map(x => x.id === editing.id ? {...editing, updatedAt: new Date().toISOString()} : x)
-          : [{...editing, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()}, ...items];
-        setItems(next);
-        setShowEditor(false);
-        setEditing(null);
-      }
-      function duplicateItem(id){
-        const it = items.find(x => x.id === id);
-        if(!it) return;
-        const copy = {...it, id: uid(), name: it.name + ' (copy)', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()};
-        setItems([copy, ...items]);
-      }
-      function deleteItem(id){
-        if(!confirm('Delete this prompt?')) return;
-        setItems(items.filter(x => x.id !== id));
-      }
-      function addCategory(){
-        const name = prompt('New category name');
-        if(!name) return;
-        if(categories.includes(name)) return alert('Category already exists');
-        setCategories([...categories, name]);
-      }
-      function importItems(){
-        importJSON((data)=>{
-          if(!Array.isArray(data)) return alert('Expected an array of prompts');
-          const cleaned = data.map(d => ({
-            id: d.id || uid(),
-            category: d.category || 'General',
-            name: d.name || 'Untitled',
-            purpose: d.purpose || '',
-            prompt: d.prompt || '',
-            notes: d.notes || '',
-            tags: Array.isArray(d.tags) ? d.tags : [],
-            channels: Array.isArray(d.channels) ? d.channels : [],
-            createdAt: d.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          }));
-          setItems(cleaned.concat(items));
-        });
-      }
-      function exportAll(){ exportJSON('prompt-library.json', items); }
-      function exportFiltered(){ exportJSON('prompt-library-filtered.json', filtered); }
-      function toggleExpanded(id){
-        setExpandedIds(prev => prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id]);
-      }
-
-      return (
-        <div className="container">
-          <div className="spread" style={{marginBottom:16}}>
-            <div className="hstack">
-              <div className="header-title">
-                <img src="./logo.png" alt="Logo" className="logo" />
-                <h1 style={{margin:0}}>Prompt Library</h1>
-              </div>
-              <label className="chip-toggle">
-                <input type="checkbox" checked={compact} onChange={e=>setCompact(e.target.checked)}/>
-                Compact view
-              </label>
-            </div>
-            <div className="hstack-wrap">
-              <button className="button" onClick={addCategory}>Add Category</button>
-              <button className="button" onClick={importItems}>Import JSON</button>
-              <button className="button" onClick={exportFiltered}>Export filtered</button>
-              <button className="button primary" onClick={exportAll}>Export all</button>
-              <button className="button" onClick={startNew}>New Prompt</button>
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="card" style={{marginBottom:16}}>
-            <div className="card-header"><div style={{fontWeight:600}}>Search & Filter</div></div>
-            <div className="card-body grid" style={{gridTemplateColumns:'2fr 1fr 1fr 1fr'}}>
-              <input className="input" value={q} onChange={e=>setQ(e.target.value)} placeholder="Search name, purpose, prompt, notes, tags…"/>
-              <select className="select" value={catFilter} onChange={e=>setCatFilter(e.target.value)}>
-                <option>All</option>
-                {categories.map(c => <option key={c}>{c}</option>)}
-              </select>
-              <input className="input" value={tagFilter} onChange={e=>setTagFilter(e.target.value)} placeholder="Tag (exact)"/>
-              <select className="select" value={channelFilter} onChange={e=>setChannelFilter(e.target.value)}>
-                <option value="">All channels</option>
-                {DEFAULT_CHANNELS.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Main Content - Two Column Grid for Prompts */}
-          <div className="two-column-grid">
-            {filtered.length===0 && (
-              <div className="card"><div className="card-body muted">No prompts match your filters.</div></div>
-            )}
-            {filtered.map(it=>(
-              <div className="card" key={it.id}>
-                <div className="card-header">
-                  <div className="spread">
-                    <div>
-                      <div style={{fontSize:18, fontWeight:600}}>{it.name}</div>
-                      <div className="muted">{it.category} • Updated {new Date(it.updatedAt).toLocaleString()}</div>
-                    </div>
-                    <div className="hstack">
-                      <button className="button ghost" title="Copy full prompt" onClick={()=>navigator.clipboard.writeText(it.prompt)}>Copy</button>
-                      <button className="button ghost" title="Edit" onClick={()=>editItem(it)}>Edit</button>
-                      <button className="button ghost" title="Duplicate" onClick={()=>duplicateItem(it.id)}>Duplicate</button>
-                      <button className="button danger" title="Delete" onClick={()=>deleteItem(it.id)}>Delete</button>
-                    </div>
-                  </div>
-                </div>
-                <div className="card-body">
-                  <div className="muted" style={{marginBottom:8}}>{it.purpose}</div>
-
-                  {compact && !expandedIds.includes(it.id) ? (
-                    <div>
-                      <div className="clamp" style={{fontSize:14, fontFamily:'ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace'}}>{it.prompt}</div>
-                      <button className="button ghost" onClick={()=>toggleExpanded(it.id)}>Show more</button>
-                    </div>
-                  ) : (
-                    <div>
-                      <pre style={{whiteSpace:'pre-wrap', fontSize:14, margin:0}}>{it.prompt}</pre>
-                      {compact && <button className="button ghost" onClick={()=>toggleExpanded(it.id)}>Show less</button>}
-                    </div>
-                  )}
-
-                  {it.notes && <div className="muted" style={{marginTop:8}}>Notes: {it.notes}</div>}
-                  <div className="hstack-wrap" style={{marginTop:8}}>
-                    {(it.tags||[]).map(t => <span key={t} className="badge">{t}</span>)}
-                    {(it.channels||[]).map(c => <span key={c} className="badge">{c}</span>)}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Editor Modal */}
-          {showEditor && editing && (
-            <div className="modal-backdrop" onClick={(e)=>{ if(e.target.classList.contains('modal-backdrop')) { setShowEditor(false); setEditing(null);} }}>
-              <div className="modal">
-                <div className="card-header spread">
-                  <div style={{fontWeight:600}}>{items.some(x=>x.id===editing.id) ? 'Edit Prompt' : 'New Prompt'}</div>
-                  <button className="button" onClick={()=>{ setShowEditor(false); setEditing(null); }}>Close</button>
-                </div>
-                <div className="card-body grid" style={{gridTemplateColumns:'1fr 1fr'}}>
-                  <div>
-                    <label className="muted">Category</label>
-                    <select className="select" value={editing.category} onChange={e=>setEditing({...editing, category: e.target.value})}>
-                      {categories.map(c => <option key={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="muted">Name</label>
-                    <input className="input" value={editing.name} onChange={e=>setEditing({...editing, name:e.target.value})} placeholder="e.g. IDV – Standard"/>
-                  </div>
-                  <div style={{gridColumn:'span 2'}}>
-                    <label className="muted">Purpose</label>
-                    <input className="input" value={editing.purpose} onChange={e=>setEditing({...editing, purpose:e.target.value})} placeholder="Why this exists"/>
-                  </div>
-                  <div style={{gridColumn:'span 2'}}>
-                    <label className="muted">Prompt</label>
-                    <textarea className="textarea" rows="7" value={editing.prompt} onChange={e=>setEditing({...editing, prompt:e.target.value})} placeholder="The actual text…"></textarea>
-                  </div>
-                  <div style={{gridColumn:'span 2'}}>
-                    <label className="muted">Notes</label>
-                    <textarea className="textarea" rows="3" value={editing.notes} onChange={e=>setEditing({...editing, notes:e.target.value})} placeholder="Compliance notes, when to use, etc."></textarea>
-                  </div>
-                  <div>
-                    <label className="muted">Tags (comma separated)</label>
-                    <input className="input" value={(editing.tags||[]).join(', ')} onChange={e=>setEditing({...editing, tags:e.target.value.split(',').map(s=>s.trim()).filter(Boolean)})} placeholder="intro, compliance, SMS"/>
-                  </div>
-                  <div>
-                    <label className="muted">Channels</label>
-                    <div className="hstack-wrap">
-                      {DEFAULT_CHANNELS.map(c=>{
-                        const checked = (editing.channels||[]).includes(c);
-                        return (
-                          <label key={c} className="chip-toggle">
-                            <input type="checkbox" checked={checked} onChange={e=>{
-                              const on = e.target.checked;
-                              const next = on ? [ ...(editing.channels||[]), c ] : (editing.channels||[]).filter(x=>x!==c);
-                              setEditing({...editing, channels: next});
-                            }}/>
-                            {c}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div style={{gridColumn:'span 2'}} className="hstack" >
-                    <button className="button" onClick={()=>{ setShowEditor(false); setEditing(null); }}>Cancel</button>
-                    <button className="button primary" onClick={saveEditing}>Save</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="muted" style={{textAlign:'center', padding:'16px 0 32px'}}>
-            Stored locally in your browser. Use Export to back up or share with teammates.
-          </div>
-        </div>
-      );
-    }
-
-    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+    // Initialize app
+    document.addEventListener('DOMContentLoaded', function() {
+      loadData();
+    });
   </script>
 </body>
 </html>
