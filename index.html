@@ -626,11 +626,11 @@
                   <div class="card-meta">${escapeHtml(prompt.category)} • Updated ${new Date(prompt.updatedAt).toLocaleDateString()}</div>
                 </div>
                 <div class="action-buttons">
-                  <button class="button ghost" onclick="copyPrompt('${prompt.id}')" title="Copy prompt">📋</button>
-                  <button class="button ghost" onclick="editPrompt('${prompt.id}')" title="Edit">✏️</button>
-                  <button class="button ghost" onclick="duplicatePrompt('${prompt.id}')" title="Duplicate">📑</button>
-                  <button class="button danger" onclick="deletePrompt('${prompt.id}')" title="Delete">🗑️</button>
-                </div>
+  <button class="button ghost" onclick="copyPrompt('${prompt.id}')" title="Copy prompt text to clipboard">📋</button>
+  <button class="button ghost" onclick="editPrompt('${prompt.id}')" title="Edit this prompt">✏️</button>
+  <button class="button ghost" onclick="duplicatePrompt('${prompt.id}')" title="Create a copy of this prompt">📑</button>
+  <button class="button danger" onclick="deletePrompt('${prompt.id}')" title="Delete this prompt permanently">🗑️</button>
+</div>
               </div>
             </div>
             <div class="card-body">
